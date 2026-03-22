@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>DITTO: MEMORY TRACE</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+
+<style>
+:root {
+    --glow: #00ffcc;
+    --rec-red: #ff1133;
+}
+
+body {
+    margin: 0;
+    background: #000;
+    font-family: 'Press Start 2P', cursive;
+    color: #eee;
+    overflow: hidden;
+    image-rendering: pixelated;
+    cursor: none;
+}
+
+/* HEAVY RETRO HORROR CRT */
+.crt {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9999;
+    background: 
+        repeating-linear-gradient(transparent 0px, transparent 3px, rgba(255,255,255,0.07) 3px, rgba(255,255,255,0.07) 6px),
+        radial-gradient(circle at 50% 50%, transparent 45%, rgba(0,0,0,0.92) 100%);
+    animation: cam-flicker 0.09s infinite alternate;
+    box-shadow: inset 0 0 140px rgba(0,255,200,0.25);
+}
+@keyframes cam-flicker { 0% { opacity: 0.93; } 100% { opacity: 1; } }
+
+/* SCREENS */
+.screen {
+    position: absolute;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 1.2s cubic-bezier(0.23,1,0.32,1);
+}
+.screen.active { display: flex; opacity: 1; }
+
+/* SCENE - BRIGHT & CLEAR */
+.scene {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    border: 18px solid #111;
+    box-shadow: 0 0 80px rgba(0,255,200,0.35), inset 0 0 60px rgba(0,0,0,0.85);
+}
+.scene img.bg {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: brightness(78%) contrast(112%) saturate(88%);
+}
+
+/* VIEWFINDER + SCANLINES */
+.viewfinder {
+    position: absolute;
+    inset: 0;
+    border: 28px solid #000;
+    box-shadow: inset 0 0 90px rgba(255,255,255,0.15);
+    pointer-events: none;
+    z-index: 6;
+}
+.scene::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(transparent 0px, transparent 4px, rgba(255,255,255,0.04) 4px, rgba(255,255,255,0.04) 8px);
+    z-index: 5;
+    animation: scan 8s linear infinite;
+}
+@keyframes scan { 0% { background-position: 0 0; } 100% { background-position: 0 400px; } }
+
+/* CAMCORDER HUD */
+.rec, .timestamp, .battery {
+    position: absolute;
+    z-index: 15;
+    text-shadow: 0 0 8px #000;
+}
+.rec { top: 38px; left: 50%; transform: translateX(-50%); color: var(--rec-red); font-size: 19px; font-weight: bold; animation: rec-blink 0.9s infinite; }
+@keyframes rec-blink { 0%,100% {opacity:1} 50%{opacity:0.2} }
+.timestamp { top: 38px; right: 45px; color: #00ffcc; font-size: 11px; }
+.battery { top: 38px; left: 45px; color: #00ffcc; font-size: 13px; }
+
+/* CAMERA - OLD FLOW */
+.cam {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(2.1);
+    width: 210px;
+    filter: drop-shadow(0 0 25px #00ffff);
+    opacity: 0;
+    z-index: 20;
+    transition: all 1.6s cubic-bezier(0.68,-0.55,0.27,1.55);
+}
+
+/* ANIMATED PAPERS */
+.paper {
+    position: absolute;
+    width: 168px;
+    height: 210px;
+    background: #f5e8c7;
+    border: 3px solid #3a2f1f;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.7);
+    padding: 14px;
+    font-size: 9px;
+    color: #222;
+    line-height: 1.3;
+    overflow: hidden;
+    z-index: 7;
+    opacity: 0;
+    transform-origin: center;
+    transition: all 1.2s ease;
+}
+.paper.found {
+    opacity: 1;
+    animation: paper-float 3.8s ease-in-out infinite alternate;
+}
+@keyframes paper-float {
+    0%   { transform: rotate(var(--rot)) translateY(0) scale(1); }
+    100% { transform: rotate(calc(var(--rot) + 8deg)) translateY(-26px) scale(1.03); }
+}
+.paper::before {
+    content: "PHOTO";
+    position: absolute;
+    top: 12px; left: 12px;
+    background: #111;
+    color: #fff;
+    font-size: 7px;
+    padding: 2px 6px;
+    letter-spacing: 1px;
+}
+.paper p { margin: 48px 0 0 0; font-size: 8.5px; }
+
+/* FACELESS HORROR */
+.faceless {
+    position: absolute;
+    left: 6%;
+    bottom: 18%;
+    width: 148px;
+    height: 310px;
+    background: linear-gradient(#0a0a0a, #111);
+    border-radius: 12px 12px 4px 4px;
+    opacity: 0;
+    z-index: 8;
+    box-shadow: 0 0 30px rgba(255,30,80,0.4);
+    transition: opacity 1.8s ease 2.5s;
+}
+.faceless::before {
+    content: '';
+    position: absolute;
+    top: -68px; left: 34px;
+    width: 82px; height: 82px;
+    background: #0a0a0a;
+    border-radius: 50%;
+    box-shadow: inset 0 0 18px #000;
+}
+.faceless.speaking {
+    opacity: 0.92;
+    animation: faceless-bob 2.4s ease-in-out infinite;
+}
+@keyframes faceless-bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
+
+/* SMALL RETRO HORROR DIALOGUE BOX - FIXED OVERFLOW */
+.dialogue-box {
+    position: absolute;
+    bottom: 82px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 72%;
+    max-width: 780px;
+    min-height: 138px;
+    background: rgba(6,6,14,0.97);
+    border: 5px solid var(--glow);
+    padding: 22px 36px;
+    box-shadow: 0 0 35px var(--glow);
+    z-index: 25;
+    font-size: 14px;
+    line-height: 1.68;
+    text-shadow: 2px 2px 4px #000;
+    white-space: pre-wrap;
+    overflow: hidden;
+    position: relative;
+}
+.dialogue-box::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(transparent 0px, transparent 3px, rgba(255,255,255,0.08) 3px, rgba(255,255,255,0.08) 6px);
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0.4;
+}
+
+/* BUTTONS */
+.start-btn, .continue-btn {
+    padding: 18px 52px;
+    font-size: 14px;
+    letter-spacing: 4px;
+    background: #0a0a0a;
+    color: var(--glow);
+    border: 5px solid var(--glow);
+    box-shadow: 0 0 35px var(--glow);
+    cursor: pointer;
+    transition: all 0.12s;
+    z-index: 30;
+}
+.start-btn:hover, .continue-btn:hover {
+    background: var(--glow);
+    color: #000;
+    transform: scale(1.12);
+}
+.start-btn { 
+    position: absolute; 
+    bottom: 160px; 
+    left: 50%; 
+    transform: translateX(-50%); 
+}
+.continue-btn { 
+    position: absolute; 
+    bottom: 185px; 
+    right: 85px; 
+}
+</style>
+</head>
+
+<body>
+
+<div class="crt"></div>
+
+<!-- START SCREEN - CLEAN -->
+<div id="start-screen" class="screen active">
+    <div class="scene">
+        <img src="entrance.jfif" class="bg">
+        <div class="viewfinder"></div>
+        <div style="position:absolute;top:78px;left:50%;transform:translateX(-50%);color:#00ffcc;font-size:24px;text-shadow:0 0 25px #00ffcc;text-align:center;">
+            DITTO<br>
+            <span style="font-size:15px;letter-spacing:4px;">MEMORY TRACE</span>
+        </div>
+        <button class="start-btn" onclick="startGame()">CLICK TO START</button>
+    </div>
+</div>
+
+<!-- HALLWAY - OLD FLOW WITH LETTERS + CAMERA -->
+<div id="hallway" class="screen">
+    <div class="scene">
+        <img src="hallway.jfif" class="bg">
+        <div class="viewfinder"></div>
+        <div class="rec">● REC</div>
+        <div class="timestamp" id="time1">00:00:12</div>
+        <div class="battery">█▇▆ 78%</div>
+        
+        <img src="cam.png" class="cam" id="cam-hallway">
+        
+        <!-- LETTERS -->
+        <div class="paper" id="paper1" style="top:36%; left:20%; --rot:-12deg;">
+            <p>Dear Haerin,<br>I still see you every night in this hallway.<br>Why did you leave me alone?</p>
+        </div>
+        <div class="paper" id="paper2" style="top:54%; left:66%; --rot:9deg;">
+            <p>PHOTO<br>She was smiling...<br>until the dark swallowed her smile.</p>
+        </div>
+        <div class="paper" id="paper3" style="top:22%; left:46%; --rot:-4deg;">
+            <p>LETTER #3<br>You found the camera.<br>Now it sees everything you fear.</p>
+        </div>
+        
+        <div class="faceless" id="faceless"></div>
+        
+        <div class="dialogue-box faceless-speech" id="text-hallway">
+            You think those letters will bring her back?<br>She already belongs to the dark now...
+        </div>
+        
+        <button class="continue-btn" onclick="nextScene('tape')">CONTINUE</button>
+    </div>
+</div>
+
+<!-- REMAINING SCENES (unchanged flow) -->
+<div id="tape" class="screen">
+    <div class="scene">
+        <img src="tape.jpg" class="bg">
+        <div class="viewfinder"></div>
+        <div class="rec">● REC</div>
+        <div class="timestamp">00:04:21</div>
+        <div class="dialogue-box" id="text-tape">
+            She held the tape so tightly...<br>like it was the last piece of her heart.
+        </div>
+        <button class="continue-btn" onclick="nextScene('dancing')">CONTINUE</button>
+    </div>
+</div>
+
+<div id="dancing" class="screen">
+    <div class="scene">
+        <img src="dancing.jpg" class="bg">
+        <div class="viewfinder"></div>
+        <div class="dialogue-box" id="text-dancing">
+            A room once filled with laughter...<br>now it feels like a dream that was never meant to last.
+        </div>
+        <button class="continue-btn" onclick="nextScene('where-are-you')">CONTINUE</button>
+    </div>
+</div>
+
+<div id="where-are-you" class="screen">
+    <div class="scene">
+        <img src="hanni.jpg" class="bg">
+        <div class="viewfinder"></div>
+        <div class="dialogue-box" id="text-where">
+            Hanni’s voice broke through the silence...<br>“Where are you...? Please... I can’t find you...”
+        </div>
+        <button class="continue-btn" onclick="nextScene('room')">CONTINUE</button>
+    </div>
+</div>
+
+<div id="room" class="screen">
+    <div class="scene">
+        <img src="room.jpg" class="bg">
+        <div class="viewfinder"></div>
+        <div class="rec">● REC</div>
+        <div class="timestamp">00:07:55</div>
+        <div class="dialogue-box glitch" id="text-room">
+            And then you saw them...<br>Dani and Haerin standing together 
+            in the room,<br>as if the world had never 
+            taken them away.
+        </div>
+        <button class="continue-btn" onclick="nextScene('outside')">CONTINUE</button>
+    </div>
+</div>
+
+<div id="outside" class="screen">
+    <div class="scene">
+        <img src="outside.jpg" class="bg">
+        <div class="viewfinder"></div>
+        <div class="dialogue-box" id="text-outside">
+            Finally outside...<br>but the air felt colder than death itself.
+        </div>
+        <button class="continue-btn" onclick="nextScene('them')">CONTINUE</button>
+    </div>
+</div>
+
+<div id="them" class="screen">
+    <div class="scene">
+        <img src="them.jpg" class="bg">
+        <div class="viewfinder"></div>
+        <div class="rec">● REC</div>
+        <div class="timestamp">00:09:12</div>
+        <div class="dialogue-box" id="text-them">
+            They walked down the stairs together...<br>hand in hand, heading toward a future 
+            that would never come.
+        </div>
+        <button class="continue-btn" onclick="nextScene('bike')">CONTINUE</button>
+    </div>
+</div>
+
+<div id="bike" class="screen">
+    <div class="scene">
+        <img src="bike.jpg" class="bg">
+        <div class="viewfinder"></div>
+        <div class="dialogue-box glitch" id="text-bike">
+            Haerin and Hyein on the bike...<br>laughing like nothing could ever 
+            touch them.<br>That was the last time.
+        </div>
+        <button class="continue-btn" onclick="endGame()">CONTINUE</button>
+    </div>
+</div>
+
+<!-- END -->
+<div id="end" class="screen">
+    <div class="scene">
+        <img src="entrance.jfif" class="bg">
+        <div class="viewfinder"></div>
+        <h1 class="glitch" style="position:absolute;top:35%;left:50%;transform:translateX(-50%);font-size:46px;color:#ff1133;text-shadow:0 0 40px #ff0000;">
+            SHE WAS NEVER<br>JUST A MEMORY.
+        </h1>
+        <button class="continue-btn" onclick="restartGame()" style="bottom:110px;right:50%;transform:translateX(50%);">
+            REWIND TAPE
+        </button>
+    </div>
+</div>
+
+<script>
+// AUDIO - Enhanced Horror Sound Design
+const audio = {
+    tapeHiss: new Audio('tape-hiss.mp3'),      // constant background
+    cameraFocus: new Audio('camera-focus.mp3'),
+    staticBurst: new Audio('static-burst.mp3'),
+    breathing: new Audio('breathing.mp3'),
+    distantScream: new Audio('distant-scream.mp3') // optional extra horror
+};
+
+audio.tapeHiss.loop = true;
+audio.tapeHiss.volume = 0.28;
+
+// TYPEWRITER WITH RETRO FLICKER
+function typeWriter(el, text) {
+    el.innerHTML = '';
+    let i = 0;
+    const int = setInterval(() => {
+        if (i < text.length) {
+            el.innerHTML += text[i] === ' ' ? '&nbsp;' : text[i];
+            // Occasional glitch flicker for horror feel
+            if (Math.random() < 0.15) el.style.opacity = '0.6';
+            setTimeout(() => el.style.opacity = '1', 60);
+            i++;
+        } else clearInterval(int);
+    }, 38);
+}
+
+// START GAME
+function startGame() {
+    document.getElementById('start-screen').classList.remove('active');
+    audio.tapeHiss.play().catch(() => {});
+    setTimeout(() => switchScreen('hallway'), 800);
+}
+
+// SWITCH SCREEN
+function switchScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    
+    // Glitch transition
+    const glitch = document.createElement('div');
+    glitch.style.cssText = 'position:fixed;inset:0;background:#000;opacity:0.5;z-index:99999;animation:glitchflash 220ms forwards';
+    document.body.appendChild(glitch);
+    setTimeout(() => glitch.remove(), 300);
+    
+    const target = document.getElementById(id);
+    target.classList.add('active');
+    
+    const dialogue = target.querySelector('.dialogue-box');
+    if (dialogue) {
+        const fullText = dialogue.textContent.trim();
+        dialogue.textContent = '';
+        setTimeout(() => typeWriter(dialogue, fullText), 520);
+    }
+}
+
+// HALLWAY SEQUENCE (Old Flow)
+function hallwaySequence() {
+    const cam = document.getElementById('cam-hallway');
+    const papers = [document.getElementById('paper1'), document.getElementById('paper2'), document.getElementById('paper3')];
+    const faceless = document.getElementById('faceless');
+    
+    cam.style.opacity = '1';
+    audio.cameraFocus.play().catch(() => {});
+    
+    setTimeout(() => {
+        cam.style.top = '34px';
+        cam.style.left = 'auto';
+        cam.style.right = '38px';
+        cam.style.transform = 'translate(0) scale(0.82)';
+    }, 700);
+    
+    setTimeout(() => { papers[0].classList.add('found'); audio.staticBurst.play().catch(() => {}); }, 3400);
+    setTimeout(() => { papers[1].classList.add('found'); audio.staticBurst.play().catch(() => {}); }, 4100);
+    setTimeout(() => { papers[2].classList.add('found'); audio.staticBurst.play().catch(() => {}); }, 4900);
+    
+    setTimeout(() => { 
+        faceless.classList.add('speaking'); 
+        audio.breathing.play().catch(() => {});
+    }, 5800);
+}
+
+function nextScene(nextId) {
+    switchScreen(nextId);
+}
+
+function endGame() {
+    switchScreen('end');
+}
+
+function restartGame() {
+    Object.values(audio).forEach(a => { a.pause(); a.currentTime = 0; });
+    switchScreen('start-screen');
+}
+
+// KEYBOARD
+document.addEventListener('keydown', e => {
+    if ((e.key === " " || e.key === "Enter") && document.querySelector('.screen.active').id !== 'start-screen') {
+        const btn = document.querySelector('.screen.active .continue-btn');
+        if (btn) btn.click();
+    }
+});
+
+// RANDOM STATIC + HORROR SOUND
+setInterval(() => {
+    if (Math.random() < 0.25) {
+        const flash = document.createElement('div');
+        flash.style.cssText = 'position:fixed;inset:0;background:white;opacity:0.12;pointer-events:none;z-index:99999;animation:staticflash 80ms forwards';
+        document.body.appendChild(flash);
+        setTimeout(() => flash.remove(), 180);
+        
+        if (Math.random() < 0.35) {
+            audio.staticBurst.currentTime = 0;
+            audio.staticBurst.play().catch(() => {});
+        }
+    }
+}, 6500);
+
+const staticCSS = document.createElement('style');
+staticCSS.innerHTML = `
+@keyframes staticflash {0%{opacity:0.16}100%{opacity:0}}
+@keyframes glitchflash {0%{opacity:0.5}100%{opacity:0}}
+`;
+document.head.appendChild(staticCSS);
+
+// INIT
+window.onload = () => {
+    let sec = 12;
+    setInterval(() => {
+        sec++;
+        document.querySelectorAll('.timestamp').forEach(t => {
+            t.textContent = `00:0${Math.floor(sec/60)}:${sec%60 < 10 ? '0' : ''}${sec%60}`;
+        });
+    }, 1400);
+    
+    hallwaySequence();
+};
+</script>
+
+</body>
+</html>
